@@ -243,8 +243,8 @@ npm run build
 
 ## Roadmap
 
-- More chat channels, such as WhatsApp and Instagram.
-- Automatic TRC20 payment verification.
+- More chat channels, such as WhatsApp and Instagram
+- Automatic TRC20 payment verification
 - Idempotent in-bot wallet payments
 - A database-level write lock on ledger entries
 - Hardening of order and wallet reservation edge cases

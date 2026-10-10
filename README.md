@@ -178,7 +178,7 @@ cp .env.example .env.local   # then fill in your own values
 npm run dev
 ```
 
-Open http://localhost:3000. Full setup, including Google sign-in and the first owner account, is in [docs/setup.md](./docs/setup.md).
+Open http://localhost:3000. Full setup, including Google sign-in and the first owner account, is in [docs/setup.md](./docs/setup.md)
 
 ### Environment variables
 

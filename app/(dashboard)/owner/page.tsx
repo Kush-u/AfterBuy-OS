@@ -56,15 +56,16 @@ export default async function OwnerDashboardPage(): Promise<JSX.Element> {
   const admin = createAdminSupabaseClient();
   const db = asDbClient(admin);
   const today = startOfToday();
-  const [, publishedProducts, tenants, orders, settings, botsResult] = await Promise.all([
+  const [, publishedProducts, tenants, orders, settings, botsResult, allProducts] = await Promise.all([
     getProfile(db, user.id),
     listProducts(db, { status: 'published' }),
     listTenants(db),
     listOrders(db, { limit: 200 }),
     getPlatformSettings(db),
     admin.from('bot_connections').select('id').eq('status', 'connected'),
+    listProducts(db),
   ]);
-  const titleById = new Map(publishedProducts.map((product) => [product.id, product.title]));
+  const titleById = new Map(allProducts.map((product) => [product.id, product.title]));
   const tenantNameById = new Map(tenants.map((tenant) => [tenant.id, tenant.displayName]));
   const paidOrders = orders.filter((order) => isPaidOrder(order.paymentStatus, order.fulfillmentStatus));
   const pendingOrders = orders.filter((order) => isPendingOrder(order.paymentStatus));

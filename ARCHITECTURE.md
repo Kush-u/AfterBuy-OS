@@ -9,10 +9,10 @@ Technical reference for AfterBuy. Start with the [README](./README.md) for the p
 | Goal | How the design delivers it |
 | --- | --- |
 | Tenant isolation | Every query is scoped to a tenant that comes from the server session. |
-| Correct money | Amounts are integers. Balances cannot go negative. History is append-only. |
+| Correct money | Amounts are integers. Balances cannot go negative. Ledger entries are append-only. |
 | Reliable delivery | Payment, fulfillment and delivery are separate tracks that can be retried. |
 | Secrets stay on the server | Tokens are encrypted at rest and never sent to the browser. |
-| Memory never blocks a sale | Buyer Memory fails open. Orders continue if memory is down. |
+| Memory never blocks a sale | Buyer Memory calls are non-blocking. If the memory service is unavailable, orders, payments and replies continue normally. |
 
 ## System overview
 
@@ -80,7 +80,7 @@ sequenceDiagram
   TG->>WH: POST update with secret header
   WH->>WH: Verify secret token, rate limit
   WH->>Bot: Decrypt bot token, process update
-  Bot->>Ord: Create order with idempotency key
+  Bot->>Ord: Create order
   Ord->>DB: Insert order, reserve wholesale funds
   Buyer->>Bot: Pay with Binance Pay, USDT or store credit
   Bot->>Ord: Submit payment claim
@@ -106,7 +106,7 @@ sequenceDiagram
   participant DB as Postgres
   actor Owner
 
-  Seller->>App: Sign in with Google
+  Seller->>App: Sign in with Google, or open an owner invite link
   App->>Auth: Exchange OAuth code for session
   App->>DB: Create profile (reseller, pending) and tenant
   App->>Seller: Onboarding form, then pending page
@@ -120,6 +120,7 @@ sequenceDiagram
 
 - Middleware holds pending sellers on the onboarding or pending page.
 - Only the owner can change a role or status. A database trigger enforces this.
+- Sellers can also join through an owner's invite link. The account still starts as pending.
 - The owner can also decline a pending seller.
 
 ### Remy answering with Buyer Memory
@@ -155,7 +156,7 @@ sequenceDiagram
 | `launch` | Launch-readiness checks for the owner. |
 | `notifications` | In-app notifications. Never throws into the caller. |
 | `orders` | Create, list and cancel orders. Four-track state machine and event log. |
-| `payments` | Binance Pay and USDT claims, verification, owner overrides, store credit and sandbox payments. |
+| `payments` | Binance Pay and USDT claims, verification, owner overrides, store credit and demo-mode payments. |
 | `platform` | Owner-managed platform settings with encrypted credentials. |
 | `pricing` | Server-side pricing and reseller listings. |
 | `public-api` | API keys, request authentication and signed outbound webhooks. |
@@ -248,7 +249,8 @@ Other tables: `invitations`, `topup_tokens`, `audit_log` and `platform_settings`
 - Application code never uses floating point for money. Arithmetic goes through `lib/money.ts`.
 - A wallet cannot reserve more than its available balance (`balance_total - balance_reserved`).
 - Balance changes run inside Postgres functions, so the check and the write happen in one transaction.
-- Ledger rows are append-only. Corrections are new rows.
+- Ledger entries are append-only: the application only inserts ledger rows, and row-level security gives users read-only access. A database-level write lock is on the roadmap.
+- Corrections are new rows.
 - Prices are snapshotted on the order at creation. Later catalog edits do not change it.
 
 ## Order lifecycle
@@ -269,10 +271,10 @@ Delivery types are `file_reusable`, `inventory_unit`, `manual` and `supplier_api
 | Method | How it is handled |
 | --- | --- |
 | Binance Pay | Checkout is created server-side. The signed webhook or a buyer claim is checked against Binance. |
-| USDT BEP20 | The buyer sends a transaction hash. With a BscScan key and a wallet configured, the transfer is checked on-chain. |
-| USDT TRC20 | The buyer sees the store's TRC20 address. Automatic checking is on the roadmap. Owners can override payments. |
-| Store credit | Debited atomically from the buyer's credit balance. |
-| Sandbox | Used when no live method is configured. For evaluation only. |
+| USDT BEP20 | The buyer sends a transaction hash. It is verified on-chain via BscScan when `BSCSCAN_API_KEY` is configured (and a receiving wallet is set). Without the key, the app runs in demo verification mode, for testing only. |
+| USDT TRC20 | The buyer sees the store's TRC20 address. TRC20 payments are confirmed manually by the owner from the Payments page. Automatic TRC20 verification is on the roadmap. |
+| Store credit | Debited with an atomic balance update that can never go below zero. |
+| Demo mode | Used when no live method is configured. For testing only. |
 
 - Amounts are always compared with the order stored in the database.
 - A transaction hash cannot be reused. Every claim is stored with masked evidence.
@@ -283,17 +285,17 @@ Delivery types are `file_reusable`, `inventory_unit`, `manual` and `supplier_api
 | --- | --- |
 | Identity | Google sign-in through Supabase Auth. Routes read the verified user, not client claims. |
 | Roles | The profile row is the source of truth. `app_metadata` is trusted. `user_metadata` is never trusted. |
-| Approval | New sellers start `pending`. The owner activates them. |
-| Role guard | A trigger blocks `anon` and `authenticated` roles from changing `role` or `status`. |
-| Tenant scope | Tenant ids come from the session. Request bodies never supply them. |
-| Database | Row level security is enabled on every table. |
+| Sign-up and approval | Sellers can sign up with Google or through an owner's invite link. Every new account starts as `pending` and gets access only after the owner approves it. |
+| Role guard | A database trigger blocks `anon` and `authenticated` roles from changing `role` or `status`. |
+| Tenant isolation | Each store's data is isolated with Postgres row-level security, the tenant and role are always derived on the server, and each store has its own memory bank. |
 | Secrets | Bot tokens and payment credentials use AES-256-GCM with a random IV. |
 | Telegram | The `X-Telegram-Bot-Api-Secret-Token` header is compared in constant time before any work. |
 | Webhooks in | Binance Pay signatures are verified before processing. |
 | Webhooks out | Payloads are signed with HMAC-SHA256 in `X-AB-Signature`. Delivery retries up to three times. |
+| Duplicate protection | The public API supports idempotency keys on order creation. Idempotent in-bot wallet payments are on the roadmap. |
 | API keys | Format `ab_live_` or `ab_test_`. Only a SHA-256 hash is stored. |
 | Rate limits | Public API, Telegram webhook, token redemption, payment checks and invitations. Held in memory per instance. |
-| Memory | Bank ids are built on the server from the session. See below. |
+| Memory | Bank ids are built on the server from the session. `npm run memory:smoke` checks memory isolation. See below. |
 
 ### Buyer Memory banks
 

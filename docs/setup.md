@@ -14,7 +14,7 @@ This guide covers local setup and production deployment. Hosted app: https://aft
 | Telegram bot token from [@BotFather](https://t.me/BotFather) | For selling | Connecting a store bot |
 | Vercel account | For production | Hosting |
 | Hindsight and Groq keys | Optional | Buyer Memory and Remy |
-| BscScan API key | Optional | On-chain USDT BEP20 checks |
+| BscScan API key | Optional | On-chain USDT BEP20 verification |
 
 ## 1. Create the Supabase project
 
@@ -79,7 +79,7 @@ Copy `.env.example` to `.env.local` and fill in your own values. Never commit `.
 | `HINDSIGHT_API_URL` | Optional | Hindsight API base URL. |
 | `HINDSIGHT_ENABLED` | Optional | Set to `true` to turn Buyer Memory on. |
 | `HINDSIGHT_BANK_PREFIX` | Optional | Namespace for memory banks. Default `afterbuy-prod`. |
-| `BSCSCAN_API_KEY` | Optional | Enables on-chain BEP20 checks. |
+| `BSCSCAN_API_KEY` | Optional | Enables on-chain BEP20 verification via BscScan. Without it the app runs in demo verification mode, for testing only. |
 | `ACTIVE_SUPPLIER` | Optional | Selects the supplier connection. |
 | `SUPPLIER_1_API_KEY` | Optional | Supplier API key. |
 | `SUPPLIER_1_BASE_URL` | Optional | Supplier API base URL. |
@@ -156,9 +156,13 @@ A database trigger blocks users from changing their own role or status through t
 
 ## 8. Approve sellers
 
-1. A seller signs in with Google and completes onboarding.
+Sellers can sign up with Google or through an owner's invite link. Every new account starts as pending and gets access only after the owner approves it.
+
+1. The seller signs up and completes onboarding.
 2. They wait on the pending page.
 3. Open `/owner/resellers` and choose **Activate**.
+
+To invite a seller, use `/owner/resellers/invite` and share the invite link.
 
 ## 9. Connect a bot
 
@@ -177,8 +181,9 @@ Sign in as the owner, open `/owner/settings` and connect the owner bot token the
 ### Payment methods
 
 - Owners and resellers add Binance Pay credentials and USDT wallet addresses in their settings.
-- Set `BSCSCAN_API_KEY` to check BEP20 transfers on-chain.
-- With no live method configured, the platform uses a sandbox.
+- BEP20 USDT payments are verified on-chain via BscScan when `BSCSCAN_API_KEY` is configured and a receiving wallet is set. Without the key, the app runs in demo verification mode (for testing only).
+- TRC20 payments are confirmed manually by the owner from the Payments page. Automatic TRC20 verification is on the roadmap.
+- With no live method configured, the platform runs in demo mode.
 
 ## 10. Scheduled jobs
 

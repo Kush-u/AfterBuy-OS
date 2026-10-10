@@ -7,7 +7,7 @@ A 3-minute tour of the live app: https://after-buy-os.vercel.app
 ## Before you start
 
 - The dashboard is filled with **staging demo data**. It exists for evaluation only.
-- New accounts wait for owner approval by design. See [How approval works](#how-approval-works-for-a-new-sign-up).
+- Every new account starts as pending and gets access only after the owner approves it. See [How approval works](#how-approval-works-for-a-new-sign-up).
 - Most of the tour uses the owner view. The buyer intelligence step needs an approved reseller account.
 - Ask the Syrax Phantoms team to approve your account or to walk you through it.
 
@@ -55,7 +55,7 @@ If Buyer Memory is not enabled in the environment, the intelligence pages show a
 
 ```mermaid
 flowchart LR
-  A["Sign in with Google"] --> B["Account created as pending"]
+  A["Sign up with Google or an invite link"] --> B["Account created as pending"]
   B --> C["Onboarding form"]
   C --> D["Pending page"]
   D --> E["Owner opens Resellers"]
@@ -64,9 +64,9 @@ flowchart LR
   G --> H["Reseller dashboard unlocked"]
 ```
 
-1. A new Google sign-in creates a pending reseller account and a store record.
+1. Sellers can sign up with Google or through an owner's invite link. Either way, a pending reseller account and a store record are created.
 2. The seller completes onboarding and waits on the pending page.
 3. The owner activates the seller from the Resellers page. The owner can also reject the application.
 4. The seller gets a notification and can connect a store bot.
 
-Pending sellers cannot open the reseller dashboard. A database trigger stops anyone changing their own role or status.
+Every new account starts as pending and gets access only after the owner approves it. A database trigger stops anyone changing their own role or status.

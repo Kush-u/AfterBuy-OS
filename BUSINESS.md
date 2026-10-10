@@ -70,10 +70,10 @@ We have not measured costs per seller yet, so this page gives no figures.
 
 | Risk | How we handle it |
 | --- | --- |
-| Payment fraud | Amounts are checked against the stored order. Transaction hashes cannot be reused. Owners can review and override payments with a written reason. |
-| Unvetted sellers | New sellers start pending. The owner approves each one. |
-| Data leaks between stores | Row level security, server-side tenant ids and per-store memory banks. |
+| Payment fraud | Amounts are checked against the stored order. Transaction hashes cannot be reused. BEP20 payments are verified on-chain when a BscScan key is configured. TRC20 payments are confirmed manually by the owner. |
+| Unvetted sellers | Sellers can sign up with Google or through an owner's invite link. Every new account starts as pending and gets access only after the owner approves it. |
+| Data leaks between stores | Each store's data is isolated with Postgres row-level security, the tenant and role are always derived on the server, and each store has its own memory bank. |
 | Account takeover of roles | A database trigger stops users from changing their own role or status. |
-| Memory service outage | Buyer Memory fails open. Sales continue. |
+| Memory service outage | Buyer Memory calls are non-blocking. Orders, payments and replies continue normally. |
 | Supplier downtime | Failed supplier orders are reconciled on a schedule and can be completed by hand. |
 | Chat platform dependency | Telegram is first. The roadmap adds more channels. |

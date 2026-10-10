@@ -96,12 +96,12 @@ flowchart LR
 | Delivery in chat | The product arrives in the same conversation after payment. |
 | Order history and support | Check orders and reach the store from the bot. |
 
-> **Payment note:** Binance Pay and BEP20 are checked automatically when live credentials are configured. Without them the platform uses a sandbox. TRC20 shows the store's address to the buyer. Automatic TRC20 checking is on the roadmap.
+> **Payment note:** BEP20 USDT payments are verified on-chain via BscScan when `BSCSCAN_API_KEY` is configured. Without the key, the app runs in demo verification mode (for testing only). TRC20 payments are confirmed manually by the owner from the Payments page. Automatic TRC20 verification is on the roadmap.
 
 ## What makes it different
 
 - **Memory is the product.** Most stores forget the buyer after checkout. AfterBuy keeps Buyer Memory in three layers: buyer, store and platform.
-- **Each store has its own memory.** Banks are resolved on the server from the signed-in session, so one store never reads another store's buyers.
+- **Each store has its own memory.** Banks are resolved on the server from the signed-in session, not from the browser.
 - **Memory learns.** When three different buyers share the same outcome, the store gets a learned pattern.
 
 Read more in [INNOVATION.md](./INNOVATION.md).
@@ -122,7 +122,7 @@ Generic store builders here means typical web-first storefront tools in their de
 
 1. Open https://after-buy-os.vercel.app.
 2. Sign in with Google.
-3. New accounts wait for owner approval by design. You will see the onboarding step and then the pending page.
+3. Every new account starts as pending and gets access only after the owner approves it. You will see the onboarding step and then the pending page.
 4. Ask the team to approve your account, or follow the guided tour in [DEMO.md](./DEMO.md).
 5. Once approved, look at the dashboard, the intelligence pages, Remy and the "My Telegram Bot" panel.
 
@@ -197,7 +197,7 @@ Names and purpose only. Never commit `.env.local`.
 | `HINDSIGHT_API_URL` | Hindsight API base URL. |
 | `HINDSIGHT_ENABLED` | Set to `true` to turn Buyer Memory on. |
 | `HINDSIGHT_BANK_PREFIX` | Namespace for memory banks. |
-| `BSCSCAN_API_KEY` | Optional. Enables on-chain BEP20 checks. |
+| `BSCSCAN_API_KEY` | Optional. Enables on-chain BEP20 verification. Without it the app runs in demo verification mode. |
 | `ACTIVE_SUPPLIER` | Optional. Selects the supplier connection. |
 | `SUPPLIER_1_API_KEY` | Optional. Supplier API key. |
 | `SUPPLIER_1_BASE_URL` | Optional. Supplier API base URL. |
@@ -220,12 +220,15 @@ docs/           Setup guide, cron guide, decisions and integration notes
 - Bot tokens and payment credentials are encrypted with AES-256-GCM.
 - Telegram webhooks check a per-bot secret token before doing any work.
 - Binance Pay webhooks verify their signature before processing.
-- Postgres row level security is on for every table. Server code uses the service role only on the server.
+- Each store's data is isolated with Postgres row-level security, the tenant and role are always derived on the server, and each store has its own memory bank. `npm run memory:smoke` checks memory isolation.
 - A database trigger blocks users from changing their own role or status.
-- Owner checks run on the server. New sellers need owner approval.
+- Owner checks run on the server. Every new seller account starts as pending and gets access only after the owner approves it.
 - Outbound webhooks are signed with HMAC-SHA256 (`X-AB-Signature`).
 - Rate limiting covers the public API, Telegram webhooks, token redemption, payment checks and invitations. Limits are held in memory per instance.
-- Money is stored as integer minor units. The application never updates or deletes ledger rows.
+- Money is stored as integer minor units.
+- Ledger entries are append-only: the application only inserts ledger rows, and row-level security gives users read-only access. A database-level write lock is on the roadmap.
+- The public API supports idempotency keys on order creation, and outbound webhooks are signed. Store-credit payments use an atomic balance update that can never go below zero.
+- Buyer Memory calls are non-blocking: if the memory service is unavailable, orders, payments and replies continue normally.
 
 ## Testing
 
@@ -241,7 +244,9 @@ npm run build
 ## Roadmap
 
 - More chat channels, such as WhatsApp and Instagram.
-- Automatic on-chain verification for live BEP20 and TRC20 payments.
+- Automatic TRC20 payment verification.
+- Idempotent in-bot wallet payments.
+- A database-level write lock on ledger entries.
 - Hardening of order and wallet reservation edge cases.
 - A mobile app for sellers.
 - Analytics exports.
@@ -253,16 +258,16 @@ npm run build
 No. The dashboard shows staging demo data for evaluation. Demo products are paused so they never reach real buyers.
 
 **How does memory stay private per store?**
-Each store has its own memory banks. The server builds the bank id from the signed-in session. It never accepts a bank id from the browser.
+Each store has its own memory bank. The tenant and role are always derived on the server, and the bank id is built from the signed-in session. `npm run memory:smoke` checks memory isolation.
 
 **What happens after a buyer pays?**
 The payment is verified. The order moves into a fulfillment queue and the product is delivered in the chat. Buyer Memory then records the purchase.
 
 **How do new sellers join?**
-They sign in with Google, finish onboarding and wait as pending. The owner approves them from the resellers page.
+Sellers can sign up with Google or through an owner's invite link. Every new account starts as pending and gets access only after the owner approves it.
 
 **What's next?**
-More chat channels, automatic TRC20 checking, hardening of order and wallet edge cases, and a seller mobile app.
+More chat channels, automatic TRC20 verification, idempotent in-bot wallet payments, and a seller mobile app.
 
 ## Team
 

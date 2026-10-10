@@ -2,6 +2,8 @@
 
 See also `integrations/bsc/README.md`.
 
-Phase 0 uses `createSandboxBscClient()` whenever `BSCSCAN_API_KEY` is unset or starts with `PLACEHOLDER`. `BSC_RPC_URL` may point at a public seed node in local env; the sandbox client still does not call it.
+BEP20 USDT payments are verified on-chain via BscScan when `BSCSCAN_API_KEY` is configured. Without the key, the app runs in demo verification mode (for testing only), using `createSandboxBscClient()`.
 
-Live transfer verification (token contract, amount, window, uniqueness) is Phase 5.
+TRC20 payments are confirmed manually by the owner from the Payments page. Automatic TRC20 verification is on the roadmap.
+
+Live BEP20 verification checks the token contract, amount, time window and hash uniqueness.

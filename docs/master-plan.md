@@ -11,10 +11,10 @@ This document is the product and engineering plan. Phase 0 implements only repos
 ## Money and tenancy invariants
 
 - Currency at launch is USDT only. Amounts are integer minor units with 6 decimal places (`1 USDT = 1_000_000`).
-- Ledger rows are append-only. Corrections are new reversal entries.
+- Ledger entries are append-only: the application only inserts ledger rows, and row-level security gives users read-only access. A database-level write lock is on the roadmap. Corrections are new reversal entries.
 - Tenant IDs used in queries come from the authenticated session, never from the request body.
 - Prices are calculated server-side. Client and bot submitted prices are ignored.
-- Order and wallet mutations require idempotency keys.
+- The public API supports idempotency keys on order creation. Idempotent in-bot wallet payments are on the roadmap.
 - Bot webhooks validate `X-Telegram-Bot-Api-Secret-Token` from Phase 4 onward.
 
 ## System shape

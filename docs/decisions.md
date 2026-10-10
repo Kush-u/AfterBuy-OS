@@ -36,7 +36,7 @@
 
 **Status:** Accepted
 
-**Decision:** `ledger_transactions` has no `updated_at` and is never updated or deleted. Corrections insert new reversal or adjustment rows that reference the original.
+**Decision:** `ledger_transactions` has no `updated_at`. The application only inserts ledger rows, and row-level security gives users read-only access. A database-level write lock is on the roadmap. Corrections insert new reversal or adjustment rows that reference the original.
 
 **Rationale:** Financial history must be reconstructable. Silent in-place edits hide mistakes and make audits impossible.
 

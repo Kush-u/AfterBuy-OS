@@ -46,8 +46,8 @@ AfterBuy writes that history down and uses it the next time.
 | Platform | Platform-wide operational patterns. | The platform owner only. |
 
 - Memory is stored in Hindsight by Vectorize, one bank per layer.
-- **Each store has its own memory.** The bank id contains the tenant id, and the server builds it from the signed-in session. A bank id from the browser is never accepted.
-- `npm run memory:smoke` checks that one store cannot read another store's memory.
+- **Each store has its own memory bank.** The bank id contains the tenant id. The tenant and role are always derived on the server, and a bank id from the browser is never accepted.
+- `npm run memory:smoke` checks memory isolation.
 
 ### What gets written
 
@@ -72,9 +72,11 @@ If three different buyers have a similar context and the same outcome, the store
 - The **WHY?** view in the buyer panel lists those memories.
 - Remy's replies are shaped by the top recalled memories, which are added to the prompt on the server.
 
-### Memory fails open
+### Memory is non-blocking
 
-If Hindsight is off or down, memory calls return empty results and mark the response as degraded. Orders, payments and delivery carry on.
+Buyer Memory calls are non-blocking: if the memory service is unavailable, orders, payments and replies continue normally.
+
+When memory is unavailable, memory calls return empty results and the response is marked degraded.
 
 ## Before and after
 

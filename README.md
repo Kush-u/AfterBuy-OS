@@ -197,10 +197,10 @@ Names and purpose only. Never commit `.env.local`.
 | `HINDSIGHT_API_URL` | Hindsight API base URL. |
 | `HINDSIGHT_ENABLED` | Set to `true` to turn Buyer Memory on. |
 | `HINDSIGHT_BANK_PREFIX` | Namespace for memory banks. |
-| `BSCSCAN_API_KEY` | Optional. Enables on-chain BEP20 verification. Without it the app runs in demo verification mode. |
-| `ACTIVE_SUPPLIER` | Optional. Selects the supplier connection. |
-| `SUPPLIER_1_API_KEY` | Optional. Supplier API key. |
-| `SUPPLIER_1_BASE_URL` | Optional. Supplier API base URL. |
+| `BSCSCAN_API_KEY` | Optional Enables on-chain BEP20 verification. Without it the app runs in demo verification mode. |
+| `ACTIVE_SUPPLIER` | Optional Selects the supplier connection. |
+| `SUPPLIER_1_API_KEY` | Optional Supplier API key. |
+| `SUPPLIER_1_BASE_URL` | Optional Supplier API base URL. |
 
 ## Project structure
 

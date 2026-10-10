@@ -245,12 +245,12 @@ npm run build
 
 - More chat channels, such as WhatsApp and Instagram.
 - Automatic TRC20 payment verification.
-- Idempotent in-bot wallet payments.
-- A database-level write lock on ledger entries.
-- Hardening of order and wallet reservation edge cases.
-- A mobile app for sellers.
-- Analytics exports.
-- Seller billing for the planned subscription.
+- Idempotent in-bot wallet payments
+- A database-level write lock on ledger entries
+- Hardening of order and wallet reservation edge cases
+- A mobile app for sellers
+- Analytics exports
+- Seller billing for the planned subscription
 
 ## FAQ for judges
 

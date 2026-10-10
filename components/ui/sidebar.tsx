@@ -33,6 +33,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import type { UserRole } from '@/modules/identity/types';
+import BotQuickPanel from '@/components/bot/bot-quick-panel';
 import { API_ROUTES, ROUTES } from '@/lib/navigation';
 import { createBrowserSupabaseClient } from '@/lib/supabase/client';
 import { useEffect, useState } from 'react';
@@ -290,6 +291,7 @@ export function Sidebar({
             </div>
           ))}
         </nav>
+        <BotQuickPanel role={role} collapsed={collapsed} onNavigate={onClose} />
         <div className="group/user border-t border-[var(--border)] p-3">
           <div className={`flex items-center gap-2.5 ${collapsed ? 'justify-center' : ''}`}>
             <Link

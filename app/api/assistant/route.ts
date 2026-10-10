@@ -10,7 +10,9 @@ import { asDbClient, requireReseller, requireRole } from '@/lib/auth/session';
 import { AppError } from '@/lib/errors';
 import {
   recallCustomerExperience,
+  recallTenantExperience,
   resolveCustomerMemoryBank,
+  resolveTenantMemoryBank,
   retainCommerceExperience,
   type MemoryEvidence,
 } from '@/lib/hindsight';
@@ -100,13 +102,29 @@ export async function POST(request: Request): Promise<Response> {
     }
 
     const userMessage = [...body.messages].reverse().find((message) => message.role === 'user')?.content ?? '';
-    const memory = await loadCustomerMemory(session, userMessage);
+    const [memory, storeSnapshot] = await Promise.all([
+      loadCustomerMemory(session, userMessage),
+      buildStoreSnapshot(session),
+    ]);
     const systemPrompt = buildSystemPrompt();
-    const system = memory.memories.length > 0
-      ? `${systemPrompt}\n\nCustomer memory context (use this to personalize your response):\n${memory.memories
-          .slice(0, 5)
+    const contextBlocks: string[] = [];
+    if (storeSnapshot.length > 0) {
+      contextBlocks.push(
+        `Store data from the database (live, accurate; name specific buyers and numbers when answering):\n${storeSnapshot
+          .map((line) => `- ${line}`)
+          .join('\n')}`,
+      );
+    }
+    if (memory.memories.length > 0) {
+      contextBlocks.push(
+        `Buyer Memory recalled for this question:\n${memory.memories
+          .slice(0, 8)
           .map((item) => `- ${item.text}`)
-          .join('\n')}`
+          .join('\n')}`,
+      );
+    }
+    const system = contextBlocks.length > 0
+      ? `${systemPrompt}\n\n${contextBlocks.join('\n\n')}\n\nUse the context above to answer questions about customers, sales, products and risks directly and confidently. Never say you cannot access customer data when this context is present.`
       : systemPrompt;
 
     const upstream = await fetch('https://api.groq.com/openai/v1/chat/completions', {
@@ -128,11 +146,11 @@ export async function POST(request: Request): Promise<Response> {
       throw new AppError('ASSISTANT_FAILED', detail.slice(0, 180) || 'Assistant request failed', 502);
     }
 
-    const memoryPowered = memory.memories.length > 0;
+    const memoryPowered = memory.memories.length > 0 || storeSnapshot.length > 0;
     const prelude = `data: ${JSON.stringify({
       type: 'memory_context',
       memoryPowered,
-      memories: memory.memories.slice(0, 5).map((item) => ({ text: item.text })),
+      memories: memory.memories.slice(0, 8).map((item) => ({ text: item.text })),
     })}\n\n`;
     const encoder = new TextEncoder();
     const reader = upstream.body.getReader();
@@ -236,6 +254,14 @@ async function loadCustomerMemory(
     } catch {
       // Memory lookup must not block the assistant.
     }
+    try {
+      const storeMemories = await recallTenantExperience(resolveTenantMemoryBank(tenantId), userMessage);
+      if (storeMemories.length > 0) {
+        return { bankId, memories: storeMemories };
+      }
+    } catch {
+      // Memory lookup must not block the assistant.
+    }
   }
 
   if (process.env.NODE_ENV !== 'production' && userMessage.trim().length > 0) {
@@ -251,4 +277,167 @@ async function loadCustomerMemory(
   }
 
   return { bankId: tenantId ? resolveCustomerMemoryBank(tenantId, customerId) : null, memories: [] };
+}
+
+type SnapshotOrder = {
+  customer_id: string | null;
+  product_id: string | null;
+  payment_status: string | null;
+  payment_method: string | null;
+  quoted_retail_price: number | string | null;
+  created_at: string;
+};
+
+const USDT_MINOR = 1_000_000;
+
+function formatUsdt(minor: number): string {
+  return `${(minor / USDT_MINOR).toFixed(2)} USDT`;
+}
+
+function topKey(map: Map<string, number>): string {
+  let best = '';
+  let bestCount = -1;
+  for (const [key, count] of map) {
+    if (count > bestCount) {
+      best = key;
+      bestCount = count;
+    }
+  }
+  return best;
+}
+
+/**
+ * Reads live store data so Remy can answer customer questions even when
+ * Buyer Memory has nothing indexed yet. Fails open with an empty list.
+ */
+async function buildStoreSnapshot(session: Awaited<ReturnType<typeof requireRole>>): Promise<string[]> {
+  try {
+    const db = asDbClient(session.admin);
+    let tenantFilter: string | null = null;
+    if (session.profile.role === 'reseller') {
+      const tenant = await getTenantByUserId(db, session.user.id);
+      tenantFilter = tenant.id;
+    }
+
+    let ordersQuery = session.admin
+      .from('orders')
+      .select('customer_id, product_id, payment_status, payment_method, quoted_retail_price, created_at');
+    if (tenantFilter) {
+      ordersQuery = ordersQuery.eq('tenant_id', tenantFilter);
+    }
+    const ordersResult = await ordersQuery.order('created_at', { ascending: false }).limit(500);
+    const orders = (ordersResult.data ?? []) as SnapshotOrder[];
+    if (orders.length === 0) {
+      return [];
+    }
+
+    const customerIds = [...new Set(orders.map((order) => order.customer_id).filter((id): id is string => Boolean(id)))];
+    const productIds = [...new Set(orders.map((order) => order.product_id).filter((id): id is string => Boolean(id)))];
+    const [customersResult, productsResult] = await Promise.all([
+      session.admin.from('customers').select('id, first_name, username').in('id', customerIds.slice(0, 300)),
+      session.admin.from('products').select('id, title').in('id', productIds.slice(0, 300)),
+    ]);
+    const customerName = new Map<string, string>();
+    for (const row of (customersResult.data ?? []) as Array<{ id: string; first_name: string | null; username: string | null }>) {
+      customerName.set(row.id, `${row.first_name ?? 'Buyer'}${row.username ? ` (@${row.username})` : ''}`);
+    }
+    const productTitle = new Map<string, string>();
+    for (const row of (productsResult.data ?? []) as Array<{ id: string; title: string | null }>) {
+      productTitle.set(row.id, row.title ?? 'Unnamed product');
+    }
+
+    type Buyer = {
+      spend: number;
+      paid: number;
+      orders: number;
+      risky: number;
+      products: Map<string, number>;
+      methods: Map<string, number>;
+      lastPaid: number;
+    };
+    const buyers = new Map<string, Buyer>();
+    const productSales = new Map<string, number>();
+    const productRevenue = new Map<string, number>();
+    let revenue = 0;
+    let paidCount = 0;
+    let awaiting = 0;
+
+    for (const order of orders) {
+      const price = Number(order.quoted_retail_price ?? 0) || 0;
+      const title = order.product_id ? (productTitle.get(order.product_id) ?? 'a product') : 'a product';
+      const status = order.payment_status ?? '';
+      if (status === 'awaiting' || status === 'pending_verification') {
+        awaiting += 1;
+      }
+      if (status === 'verified') {
+        revenue += price;
+        paidCount += 1;
+        productSales.set(title, (productSales.get(title) ?? 0) + 1);
+        productRevenue.set(title, (productRevenue.get(title) ?? 0) + price);
+      }
+      if (!order.customer_id) {
+        continue;
+      }
+      const buyer = buyers.get(order.customer_id) ?? {
+        spend: 0,
+        paid: 0,
+        orders: 0,
+        risky: 0,
+        products: new Map<string, number>(),
+        methods: new Map<string, number>(),
+        lastPaid: 0,
+      };
+      buyer.orders += 1;
+      buyer.products.set(title, (buyer.products.get(title) ?? 0) + 1);
+      if (order.payment_method) {
+        buyer.methods.set(order.payment_method, (buyer.methods.get(order.payment_method) ?? 0) + 1);
+      }
+      if (status === 'verified') {
+        buyer.spend += price;
+        buyer.paid += 1;
+        buyer.lastPaid = Math.max(buyer.lastPaid, new Date(order.created_at).getTime());
+      } else if (status === 'refunded' || status === 'failed') {
+        buyer.risky += 1;
+      }
+      buyers.set(order.customer_id, buyer);
+    }
+
+    const nameOf = (id: string): string => customerName.get(id) ?? `Buyer ${id.slice(0, 6)}`;
+    const lines: string[] = [];
+    lines.push(
+      `Last ${orders.length} orders: ${paidCount} paid, revenue ${formatUsdt(revenue)}, ${awaiting} awaiting payment, ${buyers.size} distinct buyers.`,
+    );
+
+    const ranked = [...buyers.entries()].filter(([, b]) => b.spend > 0).sort((a, b) => b[1].spend - a[1].spend);
+    ranked.slice(0, 5).forEach(([id, b], index) => {
+      const last = b.lastPaid ? new Date(b.lastPaid).toISOString().slice(0, 10) : 'n/a';
+      lines.push(
+        `Top customer #${index + 1}: ${nameOf(id)} spent ${formatUsdt(b.spend)} over ${b.paid} paid orders; favourite product ${topKey(b.products)}; usual payment ${topKey(b.methods) || 'unknown'}; last paid order ${last}.`,
+      );
+    });
+
+    const sellers = [...productSales.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5);
+    if (sellers.length > 0) {
+      lines.push(
+        `Best sellers: ${sellers.map(([title, count]) => `${title} (${count} sold, ${formatUsdt(productRevenue.get(title) ?? 0)})`).join('; ')}.`,
+      );
+    }
+
+    const risky = [...buyers.entries()].filter(([, b]) => b.risky > 0).sort((a, b) => b[1].risky - a[1].risky).slice(0, 5);
+    if (risky.length > 0) {
+      lines.push(`Risky buyers (refunds or failed payments): ${risky.map(([id, b]) => `${nameOf(id)} (${b.risky})`).join('; ')}.`);
+    }
+
+    const cutoff = Date.now() - 20 * 24 * 60 * 60 * 1000;
+    const renewal = ranked.filter(([, b]) => b.lastPaid > 0 && b.lastPaid < cutoff).slice(0, 5);
+    if (renewal.length > 0) {
+      lines.push(
+        `Renewal due (last paid order over 20 days ago): ${renewal.map(([id, b]) => `${nameOf(id)} (usually buys ${topKey(b.products)})`).join('; ')}.`,
+      );
+    }
+
+    return lines;
+  } catch {
+    return [];
+  }
 }

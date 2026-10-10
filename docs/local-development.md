@@ -32,5 +32,5 @@ Get a token at https://dashboard.ngrok.com/get-started/your-authtoken
 
 ## Production
 
-On Vercel, NEXT_PUBLIC_APP_URL is set to your production domain.
+On Vercel, NEXT_PUBLIC_APP_URL is set to your production domain. The hosted app uses https://after-buy-os.vercel.app.
 Bots connect permanently — no tunnel needed.

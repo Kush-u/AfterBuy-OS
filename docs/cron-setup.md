@@ -13,28 +13,28 @@ Go to https://cron-job.org and create a free account.
 
 #### Job 1: Process Orders (every 2 minutes)
 - Title: AfterBuy Process Orders
-- URL: https://YOUR_VERCEL_URL/api/fulfillment/process
+- URL: https://after-buy-os.vercel.app/api/fulfillment/process
 - Schedule: Every 2 minutes (*/2 * * * *)
 - Method: GET
 - Header: Authorization: Bearer YOUR_CRON_SECRET
 
 #### Job 2: Reconcile Supplier (every 15 minutes)
 - Title: AfterBuy Supplier Reconcile
-- URL: https://YOUR_VERCEL_URL/api/supplier/reconcile
+- URL: https://after-buy-os.vercel.app/api/supplier/reconcile
 - Schedule: Every 15 minutes (*/15 * * * *)
 - Method: GET
 - Header: Authorization: Bearer YOUR_CRON_SECRET
 
 #### Job 3: Supplier Sync (every 30 minutes)
 - Title: AfterBuy Supplier Sync
-- URL: https://YOUR_VERCEL_URL/api/supplier/sync
+- URL: https://after-buy-os.vercel.app/api/supplier/sync
 - Schedule: Every 30 minutes (*/30 * * * *)
 - Method: GET
 - Header: Authorization: Bearer YOUR_CRON_SECRET
 
 #### Job 4: Bot Health Check (every 30 minutes)
 - Title: AfterBuy Bot Health
-- URL: https://YOUR_VERCEL_URL/api/bots/health
+- URL: https://after-buy-os.vercel.app/api/bots/health
 - Schedule: Every 30 minutes (*/30 * * * *)
 - Method: GET
 - Header: Authorization: Bearer YOUR_CRON_SECRET
@@ -55,4 +55,4 @@ Check the response — should be 200 with JSON result.
 
 ## Alternative: Query parameter (if headers not supported)
 Instead of Authorization header, append ?secret=YOUR_CRON_SECRET to the URL:
-https://YOUR_VERCEL_URL/api/fulfillment/process?secret=YOUR_CRON_SECRET
+https://after-buy-os.vercel.app/api/fulfillment/process?secret=YOUR_CRON_SECRET

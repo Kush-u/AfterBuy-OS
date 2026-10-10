@@ -1,8 +1,10 @@
 # AfterBuy — Master Plan
 
-Version 1.0 · 21 September 2026
+*The store that remembers every buyer.*
 
-AfterBuy is a multi-tenant Telegram reseller platform. The owner sells digital products (ebooks, handwritten notes) through their own Telegram bot. Resellers connect their own Telegram bots, prepay a USDT wallet via admin-generated top-up tokens, and sell the owner's products to their own customers.
+AfterBuy is a multi-tenant commerce platform for digital sellers who sell inside chat apps. Telegram is the first supported channel. The owner sells digital products (ebooks, handwritten notes) through their own store bot. Resellers connect their own store bots, prepay a USDT wallet via admin-generated top-up tokens, and sell the owner's products to their own customers.
+
+For the current system, see [ARCHITECTURE.md](../ARCHITECTURE.md) and [setup.md](./setup.md). Hosted app: https://after-buy-os.vercel.app
 
 This document is the product and engineering plan. Phase 0 implements only repository setup, scaffolding, environment configuration, module skeletons, fake adapters, and the database foundation. Later phases must not be pulled forward.
 
@@ -18,7 +20,8 @@ This document is the product and engineering plan. Phase 0 implements only repos
 ## System shape
 
 - **App:** Next.js 14 App Router on Vercel
-- **Auth / DB / Storage / Queues:** Supabase (PostgreSQL, Auth, private Storage, pgmq)
+- **Auth / DB / Storage:** Supabase (PostgreSQL, Auth, private Storage)
+- **Scheduled jobs:** HTTP endpoints called by an external cron service
 - **Bots:** grammY behind `/api/webhooks/telegram/[botId]`
 - **Payments:** Binance Pay and USDT BEP20, sandbox-first
 - **Reseller API:** `/api/v1` in Phase 7

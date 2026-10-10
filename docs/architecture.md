@@ -1,63 +1,12 @@
 # Architecture
 
-High-level Phase 0 / target runtime for AfterBuy.
+**The store that remembers every buyer.**
 
-```
-                         +------------------+
-                         |     Browser      |
-                         |  Owner Dashboard |
-                         | Reseller Dashboard|
-                         +--------+---------+
-                                  |
-                                  | HTTPS
-                                  v
-                         +------------------+
-                         | Next.js 14 App   |
-                         | Vercel           |
-                         | app/(dashboard)  |
-                         | app/api/*        |
-                         +--------+---------+
-                                  |
-              +-------------------+-------------------+
-              |                   |                   |
-              v                   v                   v
-     +----------------+  +----------------+  +------------------+
-     | Supabase Auth  |  | PostgreSQL     |  | Private Storage  |
-     | profiles/roles |  | RLS + service  |  | product assets   |
-     +----------------+  | role jobs      |  +------------------+
-                         | pgmq queues    |
-                         +--------+-------+
-                                  ^
-                                  |
-+-------------+          +--------+--------+         +------------------+
-| Telegram    | HTTPS    | Webhook         | enqueue | Job worker       |
-| user / bot  +--------->+ /api/webhooks/  +-------->+ jobs/dispatch    |
-+-------------+          | telegram/[botId]|         | handlers/*       |
-                         +-----------------+         +--------+---------+
-                                                              |
-                                                              v
-                                                     Domain modules
-                                                     identity tenants
-                                                     catalog pricing
-                                                     wallet orders
-                                                     payments bots
-                                                     fulfillment
+The full architecture reference is in [ARCHITECTURE.md](../ARCHITECTURE.md). It covers:
 
-Reseller API (Phase 7)
-  Reseller system -> /api/v1 -> domain modules -> DB
-  Idempotency keys on order create and wallet mutations
-  Tenant ID from API key / session, never from body
+- the system overview and request flows
+- the module map and data model
+- money rules and the order lifecycle
+- the security model and background jobs
 
-Payment flow (sandbox in Phase 0, live in Phase 5)
-  Customer submits claim (Binance order id or BEP20 tx hash)
-       |
-       v
-  integrations/binance  OR  integrations/bsc
-       |
-       v
-  payment_claims row + order payment track
-       |
-       +--> funding track (reseller wholesale reservation/debit)
-       +--> fulfillment track (file / manual / supplier)
-       +--> delivery track (Telegram or API)
-```
+For setup and deployment, see [setup.md](./setup.md). Hosted app: https://after-buy-os.vercel.app
